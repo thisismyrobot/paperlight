@@ -6,14 +6,22 @@
  * Select 115200 as the upload speed.
  */
 #include <M5StickC.h>
+#include <WiFi.h>
 
-// the setup routine runs once when M5StickC starts up
+#include "settings.h"
+
 void setup(){
-  // Initialize the M5StickC object
-  M5.begin();
+    M5.begin();
 
-  // LCD display
-  M5.Lcd.print("Hello World");
+    M5.Lcd.print("Hello World");
+
+    WiFi.begin(ssid, password);
+
+    Serial.begin(115200);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
 }
 
 // the loop routine runs over and over again forever
