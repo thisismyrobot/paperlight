@@ -13,38 +13,60 @@
 
 const char* host = "papertrailapp.com";
 const int port = 443;
-String path = String("/api/v1/events/search.json") + papertrailquery;
+const char* latestPath = "/api/v1/events/search.json?limit=1";
+String triggerPath = String("/api/v1/events/search.json") + papertrailquery;
+
 
 void setup() {
   M5.begin();
   M5.Axp.ScreenBreath(8);
 
-  M5.Lcd.print("Connecting");
+  M5.Lcd.print("Connecting...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
-      M5.Lcd.print(".");
   }
-  M5.Lcd.print("\n\nConnected!\n");
+  M5.Lcd.print("\nConnected!\n");
 
-  M5.Lcd.print("\nLoading");
   WiFiClientSecure client;
+
+  M5.Lcd.print("\nGetting now..");
   client.connect(host, port);
-  client.println(String("GET ") + path + " HTTP/1.1");
+  client.println(String("GET ") + latestPath + " HTTP/1.1");
+  client.println(String("Host: ") + host);
+  client.println(String("X-Papertrail-Token: ") + papertrailtoken);
+  client.println();
+
+  String date;
+  String line;
+  while (client.connected()) {
+    line = client.readStringUntil(',');
+    if(line.indexOf("min_time_at") > 0) {
+      date = line.substring(15, 26);
+      break;
+    }
+  }
+  client.stop();
+  M5.Lcd.print("\nDone!\n");
+  M5.Lcd.print("\n" + date.substring(0, 10) + "\n");
+
+  M5.Lcd.print("\nLoading...");
+  client.connect(host, port);
+  client.println(String("GET ") + triggerPath + " HTTP/1.1");
   client.println(String("Host: ") + host);
   client.println(String("X-Papertrail-Token: ") + papertrailtoken);
   client.println();
 
   bool found = false;
   while (client.connected()) {
-    M5.Lcd.print(".");
-    if(client.readStringUntil('\n').indexOf("\"id\"") > 0) {
+    line = client.readStringUntil(',');
+    if(line.indexOf("generated_at") > 0 && line.indexOf(date) > 0) {
       found = true;
       break;
     }
   }
   client.stop();
-  M5.Lcd.print("\n\nLoaded!\n");
+  M5.Lcd.print("\nLoaded!\n");
 
   M5.Lcd.print("\n");
   if (found) {
