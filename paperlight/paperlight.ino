@@ -56,7 +56,7 @@ bool eventExists() {
   while (client.connected()) {
     line = client.readStringUntil(',');
     if(line.indexOf("min_time_at") > 0) {
-      date = line.substring(15, 26);
+      date = line.substring(15, 29);  // YYYY-MM-DDTHH:
       break;
     }
   }
