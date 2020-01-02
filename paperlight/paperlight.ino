@@ -10,18 +10,19 @@
 
 #include "settings.h"
 
-void setup(){
+void setup() {
+
     M5.begin();
+    M5.Axp.ScreenBreath(10);
 
-    M5.Lcd.print("Hello World");
-
+    M5.Lcd.print("Connecting");
     WiFi.begin(ssid, password);
 
-    Serial.begin(115200);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
+        M5.Lcd.print(".");
     }
+    M5.Lcd.print("\nConnected!\n");
 }
 
 // the loop routine runs over and over again forever
