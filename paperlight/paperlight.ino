@@ -8,32 +8,62 @@
 #include <M5StickC.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_bt_main.h>
+#include <esp_wifi.h>
+#include <driver/rtc_io.h>
 
 #include "settings.h"
 
-const int minutes_to_ms = 60 * 1000;
+// Power IC IP5306
+#define IP5306_ADDR           117
+#define IP5306_REG_SYS_CTL0   0x00
+#define IP5306_REG_READ1      0x71
+
+// Papertrail
 const char* host = "papertrailapp.com";
 const int port = 443;
 const char* latestPath = "/api/v1/events/search.json?limit=1";
 String triggerPath = String("/api/v1/events/search.json") + papertrailquery;
 
-void(* resetFunc) (void) = 0;
+RTC_DATA_ATTR int sleepsToGo = 0;
+
+void startSleep(int cycles) {
+  sleepsToGo = cycles;
+
+  esp_wifi_disconnect();
+  esp_wifi_stop();
+  
+  esp_bluedroid_disable();
+  esp_bluedroid_deinit();
+
+  // Disable PowerBoostKeepOn
+  Wire.begin(21, 22, 100000);
+  Wire.beginTransmission(IP5306_ADDR);
+  Wire.write(IP5306_REG_SYS_CTL0);
+  Wire.write(0x35);    // 0x37 is default reg value
+  Wire.endTransmission();
+
+  // Sleep < 32s regardless due to http://forum.m5stack.com/topic/62/ip5306-automatic-standby
+  esp_sleep_enable_timer_wakeup(30 * 1000 * 1000);
+  esp_deep_sleep_start();  
+}
 
 void setup() {
+  if (sleepsToGo > 1) {
+    startSleep(sleepsToGo - 1);
+  }
+  
   M5.begin();
   M5.Axp.ScreenBreath(7);
   pinMode(0, OUTPUT);
-}
 
-void loop() {
   while(eventExists()) {
     digitalWrite(0, HIGH);
-    delay(30 * minutes_to_ms);
+    startSleep(60);  // 30 minutes
   }
 
   digitalWrite(0, LOW);
-  delay(5 * minutes_to_ms);
-  resetFunc();
+  startSleep(20);  // 10 minutes
 }
 
 bool eventExists() {
@@ -79,4 +109,7 @@ bool eventExists() {
   client.stop();
   WiFi.disconnect();
   return found;
+}
+
+void loop() {
 }
